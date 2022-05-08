@@ -7,6 +7,7 @@ var nameOption = new Option<string>(
     description: "A 'name' option whose argument is a string representing a name.");
 
 nameOption.IsRequired = true;
+nameOption.SetDefaultValue("World");
 
 var rootCommand = new RootCommand
 {
