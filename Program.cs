@@ -1,28 +1,38 @@
-﻿// See https://aka.ms/new-console-template for more information
-using System.CommandLine;
+﻿using System.CommandLine;
+using System.CommandLine.NamingConventionBinder;
+using System.Diagnostics;
 
-// Create name option:
-var nameOption = new Option<string>(
-    new[] { "--name", "-n" },
-    description: "A 'name' option whose argument is a string representing a name.");
 
-nameOption.IsRequired = true;
-nameOption.SetDefaultValue("World");
+var rootCommand = new RootCommand();
 
-var rootCommand = new RootCommand()
-{
-    nameOption
-};
-
-// rootCommand.AddOption(nameOption);
 
 rootCommand.Description = "A Hello Greeter App";
 
-rootCommand.SetHandler((string name) =>
+var speedCommand = new Command("-s", "runs a speed test")
 {
-    Console.WriteLine($"The value for --name is: {name}");
-    Console.WriteLine($"Hello, {name}!");
-}, nameOption);
+    Handler = CommandHandler.Create(() =>
+    {
+        CommandRunner($"speed-test --json && exit");
+    })
+};
+
+static void CommandRunner(string command)
+{
+    var runProcess = new ProcessStartInfo
+    {
+        FileName = "cmd",
+        RedirectStandardInput = true,
+    };
+
+    Console.WriteLine($"Process started.");
+
+    var npmProcess = Process.Start(runProcess);
+    npmProcess?.StandardInput.WriteLine(command);
+    npmProcess?.WaitForExit();
+    npmProcess?.Close();
+}
+
+rootCommand.AddCommand(speedCommand);
 
 // Parse the incoming argument and invoke the handler
 return rootCommand.Invoke(args);
