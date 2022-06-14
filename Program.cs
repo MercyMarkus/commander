@@ -9,10 +9,12 @@ var nameOption = new Option<string>(
 nameOption.IsRequired = true;
 nameOption.SetDefaultValue("World");
 
-var rootCommand = new RootCommand
+var rootCommand = new RootCommand()
 {
-    nameOption,
+    nameOption
 };
+
+// rootCommand.AddOption(nameOption);
 
 rootCommand.Description = "A Hello Greeter App";
 
