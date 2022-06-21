@@ -3,12 +3,11 @@ using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 
 
-var rootCommand = new RootCommand();
+var cmdrRootCommand = new RootCommand();
 
+cmdrRootCommand.Description = "CLI commands aggregator app.";
 
-rootCommand.Description = "CLI commands aggregator app.";
-
-var speedCommand = new Command("-s", "runs a speed test")
+var speedCommand = new Command("speed", "runs a speed test")
 {
     Handler = CommandHandler.Create(() =>
     {
@@ -16,6 +15,12 @@ var speedCommand = new Command("-s", "runs a speed test")
         CommandRunner("exit");
     })
 };
+
+cmdrRootCommand.AddCommand(speedCommand);
+
+// Parse the incoming argument and invoke the handler
+return cmdrRootCommand.Invoke(args);
+
 
 static void CommandRunner(string command)
 {
@@ -27,15 +32,10 @@ static void CommandRunner(string command)
         RedirectStandardInput = true,
     };
 
-    Console.WriteLine($"Process started.");
+    Console.WriteLine($"PowerShell process started.");
 
-    var commandProcess = Process.Start(runProcess);
-    commandProcess?.StandardInput.WriteLine(command);
-    commandProcess?.WaitForExit();
-    commandProcess?.Close();
+    var powerShellProcess = Process.Start(runProcess);
+    powerShellProcess?.StandardInput.WriteLine(command);
+    powerShellProcess?.WaitForExit();
+    powerShellProcess?.Close();
 }
-
-rootCommand.AddCommand(speedCommand);
-
-// Parse the incoming argument and invoke the handler
-return rootCommand.Invoke(args);
