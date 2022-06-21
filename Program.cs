@@ -7,14 +7,25 @@ var cmdrRootCommand = new RootCommand();
 
 cmdrRootCommand.Description = "CLI commands aggregator app.";
 
+var saveSpeedTestResult = new Option<bool>(new[] { "--save-result", "-s" }, getDefaultValue: () => true, "Should speed test result be saved?");
+
 var speedCommand = new Command("speed", "runs a speed test")
 {
-    Handler = CommandHandler.Create(() =>
+    Handler = CommandHandler.Create<bool>((saveSpeedTestResult) =>
     {
+        if (saveSpeedTestResult)
+        {
+            // Add correct command
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
+            CommandRunner("exit");
+        }
+
         CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
         CommandRunner("exit");
-    })
+
+    }),
 };
+
 
 cmdrRootCommand.AddCommand(speedCommand);
 
