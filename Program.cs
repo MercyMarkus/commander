@@ -6,30 +6,33 @@ using System.Diagnostics;
 var rootCommand = new RootCommand();
 
 
-rootCommand.Description = "A Hello Greeter App";
+rootCommand.Description = "CLI commands aggregator app.";
 
 var speedCommand = new Command("-s", "runs a speed test")
 {
     Handler = CommandHandler.Create(() =>
     {
-        CommandRunner($"speed-test --json && exit");
+        CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
+        CommandRunner("exit");
     })
 };
 
 static void CommandRunner(string command)
 {
+    // Test on MacOS too
     var runProcess = new ProcessStartInfo
     {
-        FileName = "cmd",
+        // 'C:\Program Files\PowerShell\7\pwsh.exe'
+        FileName = "pwsh.exe",
         RedirectStandardInput = true,
     };
 
     Console.WriteLine($"Process started.");
 
-    var npmProcess = Process.Start(runProcess);
-    npmProcess?.StandardInput.WriteLine(command);
-    npmProcess?.WaitForExit();
-    npmProcess?.Close();
+    var commandProcess = Process.Start(runProcess);
+    commandProcess?.StandardInput.WriteLine(command);
+    commandProcess?.WaitForExit();
+    commandProcess?.Close();
 }
 
 rootCommand.AddCommand(speedCommand);
