@@ -7,27 +7,27 @@ var cmdrRootCommand = new RootCommand();
 
 cmdrRootCommand.Description = "CLI commands aggregator app.";
 
-var saveSpeedTestResult = new Option<bool>(new[] { "--save-result", "-s" }, getDefaultValue: () => true, "Should speed test result be saved?");
+var saveResultOption = new Option<bool>(new[] { "--save-result", "-s" }, getDefaultValue: () => false, "Should speed test result be saved?");
 
 var speedCommand = new Command("speed", "runs a speed test")
 {
-    Handler = CommandHandler.Create<bool>((saveSpeedTestResult) =>
+    Handler = CommandHandler.Create<bool>((saveResult) =>
     {
-        if (saveSpeedTestResult)
+        var jqCommand = "fast --upload --json | jq '[. | {downloadSpeed: .downloadSpeed, uploadSpeed: .uploadSpeed, latency:.latency}]' | Out-File speed-test-history.json";
+
+        if (saveResult)
         {
-            // Add correct command
-            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
-            CommandRunner("exit");
+            // Exiting out out Powershell process is not working
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && {jqCommand} && Exit-PSSession");
         }
 
-        CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
-        CommandRunner("exit");
-
+        CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json && Exit-PSSession");
     }),
 };
 
 
 cmdrRootCommand.AddCommand(speedCommand);
+speedCommand.AddOption(saveResultOption);
 
 // Parse the incoming argument and invoke the handler
 return cmdrRootCommand.Invoke(args);
