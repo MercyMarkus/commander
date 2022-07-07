@@ -1,7 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
-
+using System.Net.NetworkInformation;
 
 var cmdrRootCommand = new RootCommand();
 
@@ -13,15 +13,27 @@ var speedCommand = new Command("speed", "runs a speed test")
 {
     Handler = CommandHandler.Create<bool>((saveResult) =>
     {
-        var jqCommand = "fast --upload --json | jq '[. | {downloadSpeed: .downloadSpeed, uploadSpeed: .uploadSpeed, latency:.latency}]' | Out-File speed-test-history.json";
+        // TODO: make file names an option but also set a default value.
+        var connectionType = GetConnectionType();
+
+        var jqFilterCmd = $"fast --upload --json" +
+        $" | jq --arg dateTime '{DateTime.Now:yyyy-MM-ddTHH:mm:ss}' --arg connectionType '{connectionType}'" +
+        $" '. | {{downloadSpeed: .downloadSpeed, uploadSpeed: .uploadSpeed, latency:.latency," +
+        $" datetime: $dateTime, connectionType: $connectionType}}' | Out-File speed-results.json -Append";
+
+        // TODO: upload csv to google sheet everytime the save command runs. Use variables to cleanup jq commands/make them more informative
+        var jqCreateCsvCmd = $"Get-Content -Path .\\speed-results.json -Raw | jq -s ." +
+        $" | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @csv'" +
+        $" | Out-File speed-history.csv";
 
         if (saveResult)
         {
-            // Exiting out out Powershell process is not working
-            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && {jqCommand} && Exit-PSSession");
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && {jqFilterCmd} && {jqCreateCsvCmd}");
         }
-
-        CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json && Exit-PSSession");
+        else
+        {
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
+        }
     }),
 };
 
@@ -31,7 +43,6 @@ speedCommand.AddOption(saveResultOption);
 
 // Parse the incoming argument and invoke the handler
 return cmdrRootCommand.Invoke(args);
-
 
 static void CommandRunner(string command)
 {
@@ -47,6 +58,28 @@ static void CommandRunner(string command)
 
     var powerShellProcess = Process.Start(runProcess);
     powerShellProcess?.StandardInput.WriteLine(command);
-    powerShellProcess?.WaitForExit();
+    powerShellProcess?.WaitForExitAsync(default);
     powerShellProcess?.Close();
+}
+
+static string GetConnectionType()
+{
+    var connectionType = string.Empty;
+
+    NetworkInterface[] adapters = NetworkInterface.GetAllNetworkInterfaces();
+
+    foreach (NetworkInterface adapter in adapters.Where(a => a.OperationalStatus == OperationalStatus.Up
+        && (a.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || a.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
+        && !a.Name.StartsWith("vEthernet")))
+    {
+        if (adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+        {
+            connectionType = adapter.NetworkInterfaceType.ToString().Substring(0, 8);
+        }
+        else
+        {
+            connectionType = adapter.NetworkInterfaceType.ToString();
+        }
+    }
+    return connectionType;
 }
