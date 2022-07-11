@@ -32,7 +32,7 @@ var speedCommand = new Command("speed", "runs a speed test")
         }
         else
         {
-            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --upload --json");
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && fast --json");
         }
     }),
 };
@@ -47,17 +47,12 @@ return cmdrRootCommand.Invoke(args);
 static void CommandRunner(string command)
 {
     // Test on MacOS too
-    var runProcess = new ProcessStartInfo
-    {
-        // 'C:\Program Files\PowerShell\7\pwsh.exe'
-        FileName = "pwsh.exe",
-        RedirectStandardInput = true,
-    };
+    var runProcess = new ProcessStartInfo("pwsh.exe", $"-Command {command}");
+    runProcess.RedirectStandardInput = true;
 
     Console.WriteLine($"PowerShell process started.");
 
     var powerShellProcess = Process.Start(runProcess);
-    powerShellProcess?.StandardInput.WriteLine(command);
     powerShellProcess?.WaitForExitAsync(default);
     powerShellProcess?.Close();
 }
