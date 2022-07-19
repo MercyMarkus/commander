@@ -9,8 +9,8 @@ Commander is a CLI tool aggregator that allows me customize my favorite CLI comm
 4. In the terminal, install commander as a dotnet tool by running `dotnet tool install --global --add-source ./bin/Debug Commander --version 1.0.0`. 
 5. Commander can be invoked as a dotnet tool by running `cmdr` from a terminal shell.
 
-## Cmdr Commands
-1. speed: Running `cmdr speed` results in:
+## Commands
+1. __Speed__: Running `cmdr speed` in a terminal results in
 ```shell
 PowerShell process started.
 C:\Users\mercymarkus\AppData\Roaming\npm
