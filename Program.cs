@@ -8,27 +8,29 @@ var cmdrRootCommand = new RootCommand();
 cmdrRootCommand.Description = "CLI commands aggregator app.";
 
 var saveResultOption = new Option<bool>(new[] { "--save-result", "-s" }, getDefaultValue: () => false, "Should speed test result be saved?");
+var fileNameOption = new Option<string>(new[] { "--filename", "-f" }, getDefaultValue: () => "speed-results", "Json & CSV file name for speed test results.");
 
 var speedCommand = new Command("speed", "runs a speed test")
 {
-    Handler = CommandHandler.Create<bool>((saveResult) =>
+    Handler = CommandHandler.Create<bool, string>((saveResult, fileName) =>
     {
-        // TODO: make file names an option but also set a default value.
-        var connectionType = GetConnectionType();
-
-        var jqFilterCmd = $"fast --upload --json" +
-        $" | jq --arg dateTime '{DateTime.Now:yyyy-MM-ddTHH:mm:ss}' --arg connectionType '{connectionType}'" +
-        $" '. | {{downloadSpeed: .downloadSpeed, uploadSpeed: .uploadSpeed, latency:.latency," +
-        $" datetime: $dateTime, connectionType: $connectionType}}' | Out-File speed-results.json -Append";
-
-        // TODO: upload csv to google sheet everytime the save command runs. Use variables to cleanup jq commands/make them more informative
-        var jqCreateCsvCmd = $"Get-Content -Path .\\speed-results.json -Raw | jq -s ." +
-        $" | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @csv'" +
-        $" | Out-File speed-history.csv";
-
         if (saveResult)
         {
-            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && {jqFilterCmd} && {jqCreateCsvCmd}");
+            var formatDateTime = $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss}";
+
+            var constructSpeedTestObject = "{downloadSpeed: .downloadSpeed, uploadSpeed: .uploadSpeed, latency: .latency, " +
+            "datetime: $dateTime, connectionType: $connectionType, location: .userLocation}";
+
+            var filterSpeedTestOutput = $"jq --arg dateTime '{formatDateTime}' --arg connectionType '{GetConnectionType()}' '. | {constructSpeedTestObject}'";
+
+            var saveSpeedTestOutput = $"fast --upload --json | {filterSpeedTestOutput} | Tee-Object -FilePath {fileName}.json -Append";
+
+            var createCsvWithJq = "jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @csv'";
+
+            // TODO: upload csv to google sheet everytime the save command runs.
+            var createSpeedTestCsv = $"Get-Content -Path .\\{fileName}.json -Raw | jq -s . | {createCsvWithJq} | Out-File {fileName}.csv";
+
+            CommandRunner($"(npm list --global fast-cli || npm install --global fast-cli) && {saveSpeedTestOutput} && {createSpeedTestCsv}");
         }
         else
         {
@@ -37,24 +39,36 @@ var speedCommand = new Command("speed", "runs a speed test")
     }),
 };
 
-
 cmdrRootCommand.AddCommand(speedCommand);
 speedCommand.AddOption(saveResultOption);
+speedCommand.AddOption(fileNameOption);
 
+ChangeCommandsToLowerCase(args);
 // Parse the incoming argument and invoke the handler
 return cmdrRootCommand.Invoke(args);
 
 static void CommandRunner(string command)
 {
-    // Test on MacOS too
-    var runProcess = new ProcessStartInfo("pwsh.exe", $"-Command {command}");
-    runProcess.RedirectStandardInput = true;
+    var runProcess = new ProcessStartInfo("pwsh.exe", $"-Command {command}")
+    {
+        RedirectStandardInput = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+    };
 
     Console.WriteLine($"PowerShell process started.");
 
-    var powerShellProcess = Process.Start(runProcess);
-    powerShellProcess?.WaitForExitAsync(default);
-    powerShellProcess?.Close();
+    var process = Process.Start(runProcess);
+    Console.WriteLine(process?.StandardOutput.ReadToEnd());
+    process?.WaitForExit();
+
+    if (process?.ExitCode != 0)
+    {
+        throw new Exception($"cmdr encountered an issue: {process?.StandardError.ReadToEnd()}");
+    }
+
+    process?.Close();
 }
 
 static string GetConnectionType()
@@ -77,4 +91,12 @@ static string GetConnectionType()
         }
     }
     return connectionType;
+}
+
+static void ChangeCommandsToLowerCase(string[] args)
+{
+    for (int i = 0; i < args.Length; i++)
+    {
+        args[i] = args[i].ToLower();
+    }
 }
